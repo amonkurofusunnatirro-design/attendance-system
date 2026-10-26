@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>顔認証出席システム</title>
+<style>
+:root{--ink:#14202b;--paper:#f3f4f1;--line:#d6dad3;--bad:#c7362c;--accent:#1f6f4a}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif}
+form{width:min(360px,92vw);background:#fff;border:1px solid var(--line);border-radius:10px;padding:28px}
+h1{font-size:20px;margin:0 0 18px}label{display:block;font-size:14px;margin-bottom:6px}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:6px;font:inherit}
+input:focus-visible,button:focus-visible{outline:3px solid #7fb69b;outline-offset:1px}
+button{margin-top:16px;width:100%;padding:11px;border:0;border-radius:6px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.err{color:var(--bad);margin:12px 0 0;font-size:14px}
+</style></head><body>
+<form method="post">
+<h1 id="h"></h1><label for="p" id="l"></label><input id="p" type="password" name="password" autofocus required>
+<button id="b"></button><p class="err" id="e" data-message="{% if msg %}{{ 'bad_login' if msg=='bad' else 'too_many' }}{% endif %}"></p>
+</form>
+<script src="/static/i18n.js"></script>
+<script>
+h.textContent=t('login_title');l.textContent=t('password');b.textContent=t('sign_in');
+if(e.dataset.message)e.textContent=t(e.dataset.message);
+</script></body></html>

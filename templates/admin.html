@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>顔認証出席システム</title>
+<style>
+:root{--ink:#14202b;--paper:#f3f4f1;--card:#fff;--line:#d6dad3;--dim:#5f6b76;--ok:#1b7f4b;--late:#b36b00;--bad:#c7362c;--out:#2b5f8a;--accent:#1f6f4a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif}
+header{background:var(--ink);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;padding:0 20px}
+header b{font-size:17px;padding:14px 0}
+nav{display:flex;flex-wrap:wrap;gap:2px;flex:1}
+nav button,header a{background:none;border:0;color:#c9d2da;font:inherit;padding:15px 12px;cursor:pointer;border-bottom:3px solid transparent;text-decoration:none}
+nav button[aria-current=true]{color:#fff;border-bottom-color:#5cc08b}
+nav button:hover,header a:hover{color:#fff}
+select.lang{background:#233341;color:#fff;border:1px solid #3a4b5a;border-radius:5px;padding:4px 6px;font:inherit}
+main{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+h2{font-size:20px;margin:0 0 14px}h3{font-size:16px;margin:24px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--dim)}
+input,select{font:inherit;color:var(--ink);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #7fb69b;outline-offset:1px}
+.btn{font:inherit;font-weight:600;padding:8px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.sec{background:#fff;color:var(--accent)}.btn.del{background:#fff;color:var(--bad);border-color:var(--bad)}.btn.sm{padding:4px 10px;font-size:13px}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:620px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:13px;color:var(--dim);font-weight:600;background:#fafaf8}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;background:#e8ebe6}
+.pill.present{background:#d9f0e2;color:var(--ok)}.pill.late{background:#fbe8c8;color:var(--late)}.pill.absent{background:#f8d9d6;color:var(--bad)}
+.pill.excused{background:#dbe7f2;color:var(--out)}
+.sum{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}.sum .card{margin:0;padding:10px 16px;min-width:110px}
+.sum b{font-size:26px;display:block;line-height:1.1}.sum span{font-size:13px;color:var(--dim)} .noimg{aspect-ratio:1;display:grid;place-items:center;background:#eceee9;color:var(--dim);font-size:13px}
+.thumb{width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.grid figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.grid img{width:100%;aspect-ratio:1;object-fit:cover;display:block}.grid figcaption{padding:6px 10px;font-size:13px}
+.warn{background:#fdecc8;border:1px solid #e3b95c;border-radius:6px;padding:10px 14px;margin-bottom:14px}
+#enroll{display:none}#enroll img{width:100%;max-width:520px;border-radius:8px;background:#000}
+.wds{display:flex;gap:10px;flex-wrap:wrap}.wds label{flex-direction:row;align-items:center;gap:4px;color:var(--ink)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:9}
+#toast.bad{background:var(--bad)}.dim{color:var(--dim)}
+</style></head><body>
+<header><b>顔認証出席システム</b><nav id="nav"></nav><select class="lang" id="lang" aria-label="language"></select><a href="/" target="_blank" id="kl"></a><a href="/logout" id="lo"></a></header>
+<main id="view"></main><div id="toast" role="status"></div>
+<script src="/static/i18n.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+let timer=null;
+async function api(path,{method='GET',body,form}={}){
+  const o={method,headers:{'X-Requested-With':'FaceAttendance'}};
+  if(body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)} if(form)o.body=form;
+  const r=await fetch(path,o); if(r.status===401){location='/login';throw {}}
+  const j=await r.json().catch(()=>({})); if(!r.ok)throw j; return j;
+}
+function toast(m,bad){const e=$('#toast');e.textContent=m;e.className=bad?'bad':'';e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2800)}
+const errMsg=e=>{const k='e_'+(e&&e.error||'generic');let s=I18N[LANG][k]||I18N.en[k]||t('e_generic');if(e&&e.who)s+=' ('+e.who+')';return s};
+const act=async(fn,ok)=>{try{await fn();if(ok)toast(t('saved'))}catch(e){if(e&&e.error!==undefined||e instanceof Error||e&&Object.keys(e).length)toast(errMsg(e),true)}};
+const opts=(gs,sel,all)=>(all?`<option value="">${esc(t('all_groups'))}</option>`:'')+gs.map(g=>`<option value="${g.id}" ${String(sel)===String(g.id)?'selected':''}>${esc(g.name)}</option>`).join('');
+const pill=s=>`<span class="pill ${esc(s)}">${esc(t(s))}</span>`;
+
+const VIEWS={today,people,groups,report,alerts,account};
+const NAV=['today','people','groups','report','alerts','account'];
+function go(v){clearInterval(timer);location.hash=v;
+  document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.v===v));VIEWS[v]()}
+$('#nav').innerHTML=NAV.map(v=>`<button data-v="${v}">${esc(t('nav_'+v))}</button>`).join('');
+$('#nav').onclick=e=>{if(e.target.dataset.v)go(e.target.dataset.v)};
+$('#lang').innerHTML=LANGS.map(l=>`<option ${l===LANG?'selected':''}>${l}</option>`).join('');
+$('#lang').onchange=e=>{location.search='?lang='+e.target.value};
+$('#kl').textContent=t('camera_view');$('#lo').textContent=t('logout');
+
+// ---------- Bugun ----------
+const S={date:todayStr(),group:''};
+async function today(){
+  const gs=(await api('/api/groups')).groups;
+  $('#view').innerHTML=`<h2>${esc(t('nav_today'))}</h2>
+  <div class="card row"><label>${esc(t('date'))}<input type="date" id="d" value="${S.date}"></label>
+  <label>${esc(t('group'))}<select id="g">${opts(gs,S.group,true)}</select></label></div>
+  <div id="sum" class="sum"></div><div class="card wrap" id="tb"></div>`;
+  $('#d').onchange=e=>{S.date=e.target.value;load()};$('#g').onchange=e=>{S.group=e.target.value;load()};
+  async function load(){
+    const j=await api(`/api/day?date=${S.date}&group=${S.group}`);
+    $('#sum').innerHTML=['present','late','absent','excused'].map(k=>`<div class="card"><b>${j.counts[k]||0}</b><span>${esc(t(k))}</span></div>`).join('');
+    $('#tb').innerHTML=j.rows.length?`<table><thead><tr><th></th><th>${esc(t('name'))}</th><th>${esc(t('group'))}</th><th>${esc(t('status'))}</th><th>${esc(t('check_in'))}</th><th>${esc(t('check_out'))}</th><th>${esc(t('late_min'))}</th><th>${esc(t('note'))}</th><th></th></tr></thead><tbody>`+
+      j.rows.map(r=>`<tr><td>${r.snapshot?`<a href="/snap/${esc(r.snapshot)}" target="_blank"><img class="thumb" src="/snap/${esc(r.snapshot)}" alt=""><img class="thumb" src="/snap/${esc(r.snapshot)}" alt="" onerror="this.style.display='none'"></a>`:''}</td>
+      <td><b>${esc(r.name)}</b><div class="dim">${esc(r.id)}</div></td><td>${esc(r.group)}</td><td>${pill(r.status)}</td>
+      <td>${esc(r.check_in||'')}</td><td>${esc(r.check_out||'')}</td><td>${r.late_min||''}</td><td>${esc(r.note)}</td>
+      <td><select data-id="${esc(r.id)}" aria-label="${esc(t('mark'))}"><option value="">…</option>${['present','late','excused','absent'].map(s=>`<option value="${s}">${esc(t(s))}</option>`).join('')}<option value="clear">${esc(t('clear'))}</option></select></td></tr>`).join('')+'</tbody></table>':`<p class="dim">${esc(t('no_rows'))}</p>`;
+    $('#tb').onchange=e=>{const id=e.target.dataset.id;if(!id||!e.target.value)return;
+      let note='';if(e.target.value==='excused')note=prompt(t('note'))||'';
+      act(async()=>{await api('/api/mark',{method:'POST',body:{person_id:id,date:S.date,status:e.target.value,note}});load()})};
+  }
+  await load(); if(S.date===todayStr())timer=setInterval(load,10000);
+}
+
+// ---------- Odamlar ----------
+let EN=null;
+async function people(){
+  const [gs,pp]=await Promise.all([api('/api/groups'),api('/api/people')]);EN=null;
+  $('#view').innerHTML=`<h2>${esc(t('nav_people'))}</h2>
+  <form class="card row" id="f"><label>${esc(t('id'))}<input id="pid" required pattern="[A-Za-z0-9_.\\-]+" maxlength="40"></label>
+  <label>${esc(t('name'))}<input id="pn" required maxlength="80"></label>
+  <label>${esc(t('role'))}<select id="pr"><option value="student">${esc(t('student'))}</option><option value="staff">${esc(t('staff'))}</option></select></label>
+  <label>${esc(t('group'))}<select id="pg">${opts(gs.groups)}</select></label>
+  <label>${esc(t('chat_id'))}<input id="pc" maxlength="40"></label><button class="btn">${esc(t('save'))}</button></form>
+  <div class="card" id="enroll"></div>
+  <div class="card wrap">${pp.people.length?`<table><thead><tr><th>${esc(t('id'))}</th><th>${esc(t('name'))}</th><th>${esc(t('role'))}</th><th>${esc(t('group'))}</th><th>${esc(t('faces'))}</th><th></th></tr></thead><tbody>`+
+   pp.people.map(p=>`<tr><td>${esc(p.id)}</td><td><b>${esc(p.name)}</b></td><td>${esc(t(p.role))}</td><td>${esc(p.group_name)}</td>
+   <td>${p.faces?`<span class="pill present">${esc(t('faces_of',{n:p.faces,m:pp.max_faces}))}</span>`:`<span class="pill absent">0</span>`}</td>
+   <td style="white-space:nowrap"><button class="btn sm" data-a="enroll" data-id="${esc(p.id)}">${esc(t('enroll'))}</button>
+   <button class="btn sm sec" data-a="edit" data-id="${esc(p.id)}">${esc(t('edit'))}</button>
+   <button class="btn sm del" data-a="del" data-id="${esc(p.id)}">${esc(t('delete'))}</button></td></tr>`).join('')+'</tbody></table>':`<p class="dim">${esc(t('no_rows'))}</p>`}</div>`;
+  $('#f').onsubmit=e=>{e.preventDefault();act(async()=>{await api('/api/people',{method:'POST',body:{id:$('#pid').value,name:$('#pn').value,role:$('#pr').value,group_id:$('#pg').value,chat_id:$('#pc').value}});people()},true)};
+  $('#view').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const p=pp.people.find(x=>x.id===b.dataset.id);
+    if(b.dataset.a==='edit'){$('#pid').value=p.id;$('#pn').value=p.name;$('#pr').value=p.role;$('#pg').value=p.group_id||'';$('#pc').value=p.chat_id||'';window.scrollTo(0,0)}
+    if(b.dataset.a==='del'&&confirm(t('confirm_delete')))act(async()=>{await api('/api/people/'+encodeURIComponent(p.id),{method:'DELETE'});people()});
+    if(b.dataset.a==='enroll')enroll(p,pp.max_faces)};
+}
+function enroll(p,max){
+  const el=$('#enroll');el.style.display='block';let n=p.faces;
+  el.innerHTML=`<h3 style="margin-top:0">${esc(p.name)} <span class="dim">(${esc(p.id)})</span></h3><p class="dim">${esc(t('enroll_hint'))}</p>
+  <div class="noimg" id="video-container">
+    <img src="/video_feed" alt="" onerror="this.style.display='none'">
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="cap">${esc(t('capture'))}</button>
+  <label>${esc(t('upload_photo'))}<input type="file" id="up" accept="image/*"></label><button class="btn del" id="rs">${esc(t('reset_faces'))}</button>
+  <button class="btn sec" id="cl">${esc(t('close'))}</button><b id="cnt">${esc(t('faces_of',{n,m:max}))}</b></div>`;
+  const upd=j=>{n=j.faces;$('#cnt').textContent=t('faces_of',{n,m:max})};
+  $('#cap').onclick=()=>act(async()=>upd(await api(`/api/people/${encodeURIComponent(p.id)}/capture`,{method:'POST'})));
+  $('#up').onchange=e=>{const f=new FormData();f.append('photo',e.target.files[0]);act(async()=>{upd(await api(`/api/people/${encodeURIComponent(p.id)}/upload`,{method:'POST',form:f}));e.target.value=''})};
+  $('#rs').onclick=()=>confirm(t('confirm_delete'))&&act(async()=>{await api(`/api/people/${encodeURIComponent(p.id)}/faces`,{method:'DELETE'});upd({faces:0})});
+  $('#cl').onclick=()=>{el.style.display='none';el.innerHTML='';people()};el.scrollIntoView({behavior:'smooth'});
+}
+
+// ---------- Guruhlar ----------
+async function groups(){
+  const j=await api('/api/groups');const wd=g=>String(g.workdays).split(',');
+  $('#view').innerHTML=`<h2>${esc(t('nav_groups'))}</h2>
+  <form class="card" id="f"><input type="hidden" id="gid"><div class="row"><label>${esc(t('name'))}<input id="gn" required maxlength="60"></label>
+  <label>${esc(t('start_time'))}<input type="time" id="gs" value="09:00" required></label><label>${esc(t('grace'))}<input type="number" id="gg" value="0" min="0" max="240" style="width:90px"></label>
+  <label>${esc(t('end_time'))}<input type="time" id="ge" value="18:00" required></label></div>
+  <div class="wds" style="margin:12px 0">${[1,2,3,4,5,6,7].map(d=>`<label><input type="checkbox" class="wd" value="${d}" ${d<6?'checked':''}> ${esc(t('wd'+d))}</label>`).join('')}</div>
+  <button class="btn">${esc(t('save'))}</button></form>
+  <div class="card wrap"><table><thead><tr><th>${esc(t('name'))}</th><th>${esc(t('start_time'))}</th><th>${esc(t('grace'))}</th><th>${esc(t('end_time'))}</th><th>${esc(t('workdays'))}</th><th></th></tr></thead><tbody>`+
+  j.groups.map(g=>`<tr><td><b>${esc(g.name)}</b></td><td>${esc(g.start_time)}</td><td>${g.grace_min}</td><td>${esc(g.end_time)}</td><td>${wd(g).map(d=>esc(t('wd'+d))).join(' ')}</td>
+  <td style="white-space:nowrap"><button class="btn sm sec" data-a="edit" data-id="${g.id}">${esc(t('edit'))}</button> <button class="btn sm del" data-a="del" data-id="${g.id}">${esc(t('delete'))}</button></td></tr>`).join('')+`</tbody></table></div>
+  <h3>${esc(t('holidays'))}</h3><form class="card row" id="hf"><label>${esc(t('date'))}<input type="date" id="hd" required></label><label>${esc(t('note'))}<input id="hn" maxlength="100"></label><button class="btn">${esc(t('add'))}</button></form>
+  <div class="card">${Object.keys(j.holidays).length?Object.entries(j.holidays).map(([d,n])=>`<span class="pill" style="margin:3px">${esc(d)} ${esc(n)} <a href="#" data-h="${esc(d)}" aria-label="${esc(t('delete'))}">×</a></span>`).join(''):`<span class="dim">${esc(t('no_rows'))}</span>`}</div>`;
+  $('#f').onsubmit=e=>{e.preventDefault();act(async()=>{await api('/api/groups',{method:'POST',body:{id:$('#gid').value||null,name:$('#gn').value,start_time:$('#gs').value,grace_min:$('#gg').value,end_time:$('#ge').value,workdays:[...document.querySelectorAll('.wd:checked')].map(c=>c.value).join(',')}});groups()},true)};
+  $('#hf').onsubmit=e=>{e.preventDefault();act(async()=>{await api('/api/holidays',{method:'POST',body:{date:$('#hd').value,note:$('#hn').value}});groups()})};
+  $('#view').onclick=e=>{const h=e.target.dataset.h;if(h){e.preventDefault();act(async()=>{await api('/api/holidays/'+h,{method:'DELETE'});groups()})}
+    const b=e.target.closest('button[data-a]');if(!b)return;const g=j.groups.find(x=>String(x.id)===b.dataset.id);
+    if(b.dataset.a==='edit'){$('#gid').value=g.id;$('#gn').value=g.name;$('#gs').value=g.start_time;$('#gg').value=g.grace_min;$('#ge').value=g.end_time;
+      document.querySelectorAll('.wd').forEach(c=>c.checked=wd(g).includes(c.value));window.scrollTo(0,0)}
+    if(b.dataset.a==='del'&&confirm(t('confirm_delete')))act(async()=>{await api('/api/groups/'+g.id,{method:'DELETE'});groups()})};
+}
+
+// ---------- Hisobot ----------
+async function report(){
+  const gs=(await api('/api/groups')).groups;const to=todayStr(),fr=new Date(Date.now()-29*864e5).toISOString().slice(0,10);
+  $('#view').innerHTML=`<h2>${esc(t('nav_report'))}</h2><div class="card row"><label>${esc(t('from'))}<input type="date" id="rf" value="${fr}"></label>
+  <label>${esc(t('to'))}<input type="date" id="rt" value="${to}"></label><label>${esc(t('group'))}<select id="rg">${opts(gs,'',true)}</select></label>
+  <a class="btn sec" id="ec">${esc(t('export_csv'))}</a><a class="btn sec" id="ex">${esc(t('export_xlsx'))}</a></div><div class="card wrap" id="rb"></div>`;
+  async function load(){const q=`from=${$('#rf').value}&to=${$('#rt').value}&group=${$('#rg').value}`;
+    $('#ec').href='/api/export.csv?'+q;$('#ex').href='/api/export.xlsx?'+q;
+    const j=await api('/api/report?'+q);
+    $('#rb').innerHTML=j.rows.length?`<table><thead><tr><th>${esc(t('name'))}</th><th>${esc(t('group'))}</th><th>${esc(t('present'))}</th><th>${esc(t('late'))}</th><th>${esc(t('absent'))}</th><th>${esc(t('excused'))}</th><th>${esc(t('late_min'))}</th><th>${esc(t('rate'))}</th></tr></thead><tbody>`+
+    j.rows.map(r=>`<tr><td><b>${esc(r.name)}</b><div class="dim">${esc(r.id)}</div></td><td>${esc(r.group)}</td><td>${r.present}</td><td>${r.late}</td><td>${r.absent}</td><td>${r.excused}</td><td>${r.late_min}</td><td>${r.rate===null?'—':r.rate+'%'}</td></tr>`).join('')+'</tbody></table>':`<p class="dim">${esc(t('no_rows'))}</p>`}
+  ['rf','rt','rg'].forEach(i=>$('#'+i).onchange=load);load();
+}
+
+// ---------- Ogohlantirishlar ----------
+async function alerts(){
+  const j=await api('/api/unknown');
+  $('#view').innerHTML=`<h2>${esc(t('nav_alerts'))}</h2>`+(j.rows.length?`<div class="grid">`+j.rows.map(r=>`<figure>${r.snapshot?`<a href="/snap/${esc(r.snapshot)}" target="_blank"><img src="/snap/${esc(r.snapshot)}" alt="" onerror="this.parentNode.outerHTML='<div class=noimg>'+t('no_image')+'</div>'"></a>`:`<div class="noimg">${esc(t('no_image'))}</div>`}
+  <figcaption>${pill(r.kind==='spoof'?'absent':'late').replace(/>[^<]*</,'>'+esc(t(r.kind==='spoof'?'k_spoof':'k_unknown'))+'<')}<br>${esc(r.ts)}</figcaption></figure>`).join('')+'</div>':`<p class="dim">${esc(t('no_rows'))}</p>`);
+}
+
+// ---------- Tizim ----------
+async function account(){
+  const s=await api('/api/status');
+  $('#view').innerHTML=`<h2>${esc(t('nav_account'))}</h2>${s.liveness==='off'?`<div class="warn">${esc(t('live_off'))}</div>`:''}
+  <div class="card"><table style="min-width:0"><tr><th>${esc(t('camera'))}</th><td>${esc(s.camera||'—')} ${s.camera_ok?'':'⚠'}</td></tr>
+  <tr><th>${esc(t('liveness'))}</th><td>${esc(s.liveness)}</td></tr><tr><th>${esc(t('people_n'))}</th><td>${s.people}</td></tr>
+  <tr><th>${esc(t('fps'))}</th><td>${s.fps}</td></tr><tr><th>Model</th><td>${esc(s.device)}</td></tr></table></div>
+  <form class="card row" id="pf"><label>${esc(t('pw_old'))}<input type="password" id="po" required autocomplete="current-password"></label>
+  <label>${esc(t('pw_new'))}<input type="password" id="pnw" required minlength="8" autocomplete="new-password"></label><button class="btn">${esc(t('change_pw'))}</button></form>`;
+  $('#pf').onsubmit=e=>{e.preventDefault();act(async()=>{await api('/api/password',{method:'POST',body:{old:$('#po').value,new:$('#pnw').value}});$('#pf').reset()},true)};
+}
+go(NAV.includes(location.hash.slice(1))?location.hash.slice(1):'today');
+</script></body></html>

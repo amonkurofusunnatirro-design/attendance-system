@@ -1,0 +1,12 @@
+flask
+numpy
+opencv-python-headless
+onnxruntime
+insightface
+pillow
+openpyxl
+requests
+# 任意:
+#   pyrealsense2          - Intel RealSense（深度によるなりすまし対策）
+#   onnxruntime-gpu       - NVIDIA GPUがある場合（onnxruntime の代わりにインストール）
+#   cryptography          - 顔データの暗号化 (FACEATTEND_KEY)

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>顔認証出席システム</title>
+<style>
+:root{--ink:#10171e;--panel:#18222b;--dim:#8d9aa6;--text:#eef1f3;--ok:#1f9d5a;--late:#d88a0a;--out:#3a74a8;--bad:#d63a2f}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--text);font:16px/1.4 system-ui,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif;display:grid;grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:minmax(0,1fr) auto}
+.cam{grid-row:1;grid-column:1;position:relative;background:#000;display:grid;place-items:center;min-height:0}
+.cam img{max-width:100%;max-height:100%;object-fit:contain}
+#off{position:absolute;inset:0;display:none;place-items:center;background:#000d;font-size:22px;text-align:center;padding:24px}
+aside{grid-row:1/3;grid-column:2;background:var(--panel);padding:18px;display:flex;flex-direction:column;min-height:0}
+aside h2{font-size:15px;font-weight:600;margin:0 0 10px;color:var(--dim)}
+#log{list-style:none;margin:0;padding:0;overflow:auto;flex:1}
+#log li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:9px 0;border-bottom:1px solid #263440}
+#log .tm{color:var(--dim);font-variant-numeric:tabular-nums;grid-row:span 2}
+#log .nm{font-weight:600;overflow-wrap:anywhere}
+#log .st{font-size:13px;color:var(--dim)}
+#log li.late .st{color:#f0b24a}#log li.bad .nm,#log li.bad .st{color:#ff6f64}
+#meta{font-size:13px;color:var(--dim);padding-top:10px}
+#banner{grid-row:2;grid-column:1;padding:20px 32px;min-height:132px;display:flex;flex-direction:column;justify-content:center;background:var(--panel);transition:background-color .15s}
+#banner .ti{font-size:clamp(30px,5vw,60px);font-weight:700;line-height:1.1;overflow-wrap:anywhere}
+#banner .su{font-size:clamp(16px,2vw,24px);margin-top:6px;opacity:.92}
+#banner[data-k=in]{background:var(--ok)}#banner[data-k=late]{background:var(--late)}#banner[data-k=out]{background:var(--out)}
+#banner[data-k=bad]{background:var(--bad);animation:pulse .5s 4 alternate}
+@keyframes pulse{from{box-shadow:inset 0 0 0 0 #fff}to{box-shadow:inset 0 0 0 12px #fff}}
+@media (prefers-reduced-motion:reduce){ #banner[data-k=bad]{animation:none} }
+#start{position:fixed;inset:0;z-index:5;background:var(--ink);display:grid;place-content:center;gap:14px;text-align:center}
+#start button{font:inherit;font-size:22px;font-weight:600;padding:16px 44px;border:0;border-radius:8px;background:var(--ok);color:#fff;cursor:pointer}
+#start button:focus-visible{outline:4px solid #fff}#start p{margin:0;color:var(--dim)}
+@media (max-width:820px){body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto auto}aside{grid-row:3;grid-column:1;max-height:30vh}}
+</style></head><body>
+<div id="start"><button id="go"></button><p id="gs"></p></div>
+<div class="cam"><img id="cam" src="/video_feed" alt=""><div id="off"></div></div>
+<div id="banner" data-k="idle" role="status" aria-live="assertive"><div class="ti" id="bt"></div><div class="su" id="bs"></div></div>
+<aside><h2 id="lh"></h2><ul id="log"></ul><div id="meta"></div></aside>
+<script src="/static/i18n.js"></script>
+<script>
+const $=s=>document.querySelector(s), SPEAK=new URLSearchParams(location.search).get('speak')==='1';
+let after=-1, ac=null, hideT=null;
+go.textContent=t('start'); gs.textContent=t('start_sub'); lh.textContent=t('passes'); off.textContent=t('cam_off');
+function idle(){banner.dataset.k='idle';bt.textContent=t('look');bs.textContent='';}
+idle();
+go.onclick=()=>{try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}catch(e){}
+  $('#start').remove();};
+const SND={in:[[880,.12],[1320,.2]],late:[[660,.16,'triangle'],[660,.16,'triangle']],out:[[700,.12],[520,.2]],
+  unknown:[[220,.35,'sawtooth',.35],[220,.35,'sawtooth',.35]],spoof:[[170,.5,'sawtooth',.4],[170,.5,'sawtooth',.4],[170,.5,'sawtooth',.4]]};
+function play(k){ if(!ac||!SND[k])return; let at=ac.currentTime; for(const [f,d,ty,g] of SND[k]){const o=ac.createOscillator(),a=ac.createGain();
+  o.type=ty||'sine';o.frequency.value=f;a.gain.setValueAtTime(g||.25,at);a.gain.exponentialRampToValueAtTime(.001,at+d);
+  o.connect(a);a.connect(ac.destination);o.start(at);o.stop(at+d);at+=d+.03;} }
+function say(text){ if(!SPEAK||!window.speechSynthesis)return; const u=new SpeechSynthesisUtterance(text);
+  u.lang={uz:'tr-TR',ja:'ja-JP',en:'en-US'}[LANG]||'en-US'; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+function addLog(cls,name,st){ const li=document.createElement('li'); li.className=cls;
+  const d=new Date(); li.innerHTML='<span class="tm"></span><span class="nm"></span><span class="st"></span>';
+  li.children[0].textContent=d.toTimeString().slice(0,5); li.children[1].textContent=name; li.children[2].textContent=st;
+  log.prepend(li); while(log.children.length>30)log.lastChild.remove(); }
+function show(k,title,sub,ms){ banner.dataset.k=k; bt.textContent=title; bs.textContent=sub||''; clearTimeout(hideT); hideT=setTimeout(idle,ms); }
+function handle(e){
+  const st=t(e.status||'present'), grp=e.group?(' · '+e.group):'';
+  if(e.type==='in'){ const late=e.status==='late'; play(late?'late':'in'); show(late?'late':'in',e.name,(late?t('late_msg'):t('in'))+grp,3500);
+    addLog(late?'late':'',e.name,st); say(t(late?'speak_late':'speak_in',{name:e.name})); }
+  else if(e.type==='out'){ play('out'); show('out',e.name,t('out'),2500); addLog('',e.name,t('check_out')); }
+  else if(e.type==='already'){ show('in',e.name,t('already'),2000); }
+  else if(e.type==='unknown'){ play('unknown'); show('bad',t('unknown'),t('unknown_sub'),4500); addLog('bad',t('unknown'),''); say(t('speak_unknown')); }
+  else if(e.type==='spoof'){ play('spoof'); show('bad',t('spoof'),t('spoof_sub'),4500); addLog('bad',t('spoof'),''); }
+}
+async function poll(){ try{ const r=await fetch('/api/events?after='+after); const j=await r.json();
+  after=j.last; j.events.forEach(handle); }catch(e){} setTimeout(poll,250); }
+async function stat(){ try{ const j=await (await fetch('/api/status')).json();
+  off.style.display=j.camera_ok?'none':'grid'; meta.textContent=j.people+' '+t('registered')+' · '+j.fps+' fps'; }catch(e){} setTimeout(stat,4000); }
+cam.onerror=()=>setTimeout(()=>{cam.src='/video_feed?'+Date.now();},2000);
+poll(); stat();
+</script></body></html>

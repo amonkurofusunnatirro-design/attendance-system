@@ -1,0 +1,10 @@
+data/
+.venv/
+__pycache__/
+*.pyc
+*.env
+.env
+*.db
+*.sqlite
+*.sqlite3
+models/*.onnx
