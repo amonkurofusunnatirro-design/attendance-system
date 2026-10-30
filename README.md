@@ -33,14 +33,13 @@
 | 精度 | 1人あたり最大10枚の顔サンプル、1位と2位のスコア差の確認、同じ顔を別人に二重登録できない仕組み |
 | 遅刻基準が9:00固定 | グループごとに始業時刻・猶予・勤務日・休日を設定 |
 | 欠席者が分からない | 「欠席」「公欠」の状態、レポート、Excel/CSV出力 |
-| 退室が記録されない | 入室・退室時刻を記録（MIN_STAY_MIN 経過後の再通過で退室） |
 | CSV・ターミナル操作 | SQLiteデータベース、Webからの顔登録、パスワード付き管理画面 |
 | 証拠がない | 入室時の顔画像と類似度スコアを保存（保存期間を過ぎると自動削除） |
 | 通知 | Telegram: 遅刻・欠席を本人へ、未登録・偽物の顔を管理者へ |
 
 ## 設定
 `config.py` または環境変数で変更できます。
-- `FACEATTEND_DATA`、`FACEATTEND_LANG`（ja / uz / en）、`FACEATTEND_HOST`、`FACEATTEND_PORT`
+- `FACEATTEND_DATA`、`FACEATTEND_LANG`（ja / en）、`FACEATTEND_HOST`、`FACEATTEND_PORT`
 - `FACEATTEND_CAMERA`（auto、0、`rtsp://...`）、`FACEATTEND_MODEL`、`FACEATTEND_DET_SIZE`
 - `FACEATTEND_LIVENESS`、`FACEATTEND_SERVER_SOUND=1`（PC本体のビープ音、Windows）、`FACEATTEND_TG_TOKEN` と `FACEATTEND_TG_ADMIN_CHAT`
 - `FACEATTEND_RETENTION_DAYS`、`FACEATTEND_ADMIN_PASSWORD`、`FACEATTEND_KEY`（顔データの暗号化。鍵の生成: `python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"`）
@@ -64,9 +63,9 @@ Telegram: 各人の「Telegram チャットID」欄にIDを入力します（本
 - GitHub にはソースコードのみを公開してください。`data/` には生体情報・出席記録・管理者パスワードが含まれるため、リポジトリに追加しないでください。
 
 ## 現在の制限事項
-- 授業ごとの出席には未対応です。1日1回の入退室記録で、ドア設置を想定しています。
+- 授業ごとの出席には未対応です。1日1回の入室記録で、ドア設置を想定しています。
 - マスクや暗い環境では精度が下がります。よく似た2人（兄弟など）は MARGIN の判定により「未登録」となる場合があります。
 - Webカメラ用のなりすまし対策モデルはコードに組み込み済みですが、モデルファイルは同梱していません。お使いのカメラで動作を確認してください。
 
 ## テスト
-`python -m unittest discover -s tests -v` — 擬似カメラによる自動テスト11項目（認識、未登録警告、遅刻、退室、レポート、管理API、セキュリティ）。
+`python -m unittest discover -s tests -v` — 擬似カメラによる自動テスト11項目（認識、未登録警告、遅刻、レポート、管理API、セキュリティ）。

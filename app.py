@@ -294,7 +294,7 @@ def create_app(engine, camera):
         for p, g, _, rec, st in logic.iter_days(ppl, gm, recs, hol, d, d, now):
             cnt[st] = cnt.get(st, 0) + 1
             rows.append({"id": p["id"], "name": p["name"], "role": p["role"], "group": g["name"], "status": st,
-                         "check_in": rec and rec["check_in"], "check_out": rec and rec["check_out"],
+                         "check_in": rec and rec["check_in"],
                          "late_min": logic.late_minutes(g, d, rec["check_in"]) if rec and st == "late" else 0,
                          "snapshot": rec and rec["snapshot"], "note": (rec or {}).get("note", ""),
                          "manual": bool(rec and rec["source"] == "manual")})
@@ -337,13 +337,13 @@ def create_app(engine, camera):
         gm, hol = db.groups_map(), db.holidays()
         ppl = db.people(group=group_arg())
         recs = db.att_range(d1.isoformat(), d2.isoformat(), group_arg())
-        head = ["ID", "Name", "Group", "Date", "Status", "Check-in", "Check-out", "Late (min)", "Note"]
+        head = ["ID", "Name", "Group", "Date", "Status", "Check-in", "Late (min)", "Note"]
         rows = []
         for p, g, d, rec, st in logic.iter_days(ppl, gm, recs, hol, d1, d2, now):
             if st in ("off", "future", "pending"):
                 continue
             rows.append([p["id"], p["name"], g["name"], d.isoformat(), st,
-                         (rec or {}).get("check_in") or "", (rec or {}).get("check_out") or "",
+                         (rec or {}).get("check_in") or "",
                          logic.late_minutes(g, d, rec["check_in"]) if rec and st == "late" else 0,
                          (rec or {}).get("note", "")])
         fname = f"FACEATTEND_{d1}_{d2}.{fmt}"

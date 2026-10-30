@@ -50,7 +50,7 @@ function play(k){ if(!ac||!SND[k])return; let at=ac.currentTime; for(const [f,d,
   o.type=ty||'sine';o.frequency.value=f;a.gain.setValueAtTime(g||.25,at);a.gain.exponentialRampToValueAtTime(.001,at+d);
   o.connect(a);a.connect(ac.destination);o.start(at);o.stop(at+d);at+=d+.03;} }
 function say(text){ if(!SPEAK||!window.speechSynthesis)return; const u=new SpeechSynthesisUtterance(text);
-  u.lang={uz:'tr-TR',ja:'ja-JP',en:'en-US'}[LANG]||'en-US'; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+  u.lang={ja:'ja-JP',en:'en-US'}[LANG]||'ja-JP'; speechSynthesis.cancel(); speechSynthesis.speak(u); }
 function addLog(cls,name,st){ const li=document.createElement('li'); li.className=cls;
   const d=new Date(); li.innerHTML='<span class="tm"></span><span class="nm"></span><span class="st"></span>';
   li.children[0].textContent=d.toTimeString().slice(0,5); li.children[1].textContent=name; li.children[2].textContent=st;
@@ -60,7 +60,6 @@ function handle(e){
   const st=t(e.status||'present'), grp=e.group?(' · '+e.group):'';
   if(e.type==='in'){ const late=e.status==='late'; play(late?'late':'in'); show(late?'late':'in',e.name,(late?t('late_msg'):t('in'))+grp,3500);
     addLog(late?'late':'',e.name,st); say(t(late?'speak_late':'speak_in',{name:e.name})); }
-  else if(e.type==='out'){ play('out'); show('out',e.name,t('out'),2500); addLog('',e.name,t('check_out')); }
   else if(e.type==='already'){ show('in',e.name,t('already'),2000); }
   else if(e.type==='unknown'){ play('unknown'); show('bad',t('unknown'),t('unknown_sub'),4500); addLog('bad',t('unknown'),''); say(t('speak_unknown')); }
   else if(e.type==='spoof'){ play('spoof'); show('bad',t('spoof'),t('spoof_sub'),4500); addLog('bad',t('spoof'),''); }

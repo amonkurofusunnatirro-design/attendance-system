@@ -134,12 +134,13 @@ class T(unittest.TestCase):
     def test_5_multi_embedding_match(self):
         self.assertEqual(self.app.gallery.match(VEC["A2"])[0], "a1")
 
-    def test_6_late_out_already(self):
+    def test_6_late_and_already(self):
         db.upsert_person("c1", "Carol", "student", self.gid, "")
         d = datetime(2026, 10, 21, 9, 3)       # 猶予(5分)以内
         self.assertEqual(db.punch("c1", d), ("in", "present"))
         self.assertEqual(db.punch("c1", d + timedelta(minutes=5))[0], "already")
-        self.assertEqual(db.punch("c1", d + timedelta(minutes=45))[0], "out")
+        self.assertEqual(db.punch("c1", d + timedelta(minutes=45))[0], "already")
+        self.assertIsNone(db.att_get("c1", d.date().isoformat())["check_out"])
         db.upsert_person("c2", "Dan", "student", self.gid, "")
         self.assertEqual(db.punch("c2", datetime(2026, 10, 21, 9, 20)), ("in", "late"))
 
@@ -163,7 +164,7 @@ class T(unittest.TestCase):
         self.assertEqual(self.c.get("/api/people").status_code, 200)
         self.assertEqual(self.c.post("/api/mark", json={}).status_code, 403)
         r = self.c.post("/api/mark", json={"person_id": "z1", "date": "2026-10-21", "status": "excused",
-                                           "note": "kasal"}, headers=self.H)
+                                           "note": "sick"}, headers=self.H)
         self.assertEqual(r.status_code, 200)
         day = self.c.get("/api/day?date=2026-10-21").get_json()
         self.assertEqual([x for x in day["rows"] if x["id"] == "z1"][0]["status"], "excused")

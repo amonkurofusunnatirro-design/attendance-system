@@ -69,7 +69,7 @@ $('#lang').innerHTML=LANGS.map(l=>`<option ${l===LANG?'selected':''}>${l}</optio
 $('#lang').onchange=e=>{location.search='?lang='+e.target.value};
 $('#kl').textContent=t('camera_view');$('#lo').textContent=t('logout');
 
-// ---------- Bugun ----------
+// ---------- Today ----------
 const S={date:todayStr(),group:''};
 async function today(){
   const gs=(await api('/api/groups')).groups;
@@ -81,10 +81,10 @@ async function today(){
   async function load(){
     const j=await api(`/api/day?date=${S.date}&group=${S.group}`);
     $('#sum').innerHTML=['present','late','absent','excused'].map(k=>`<div class="card"><b>${j.counts[k]||0}</b><span>${esc(t(k))}</span></div>`).join('');
-    $('#tb').innerHTML=j.rows.length?`<table><thead><tr><th></th><th>${esc(t('name'))}</th><th>${esc(t('group'))}</th><th>${esc(t('status'))}</th><th>${esc(t('check_in'))}</th><th>${esc(t('check_out'))}</th><th>${esc(t('late_min'))}</th><th>${esc(t('note'))}</th><th></th></tr></thead><tbody>`+
+    $('#tb').innerHTML=j.rows.length?`<table><thead><tr><th></th><th>${esc(t('name'))}</th><th>${esc(t('group'))}</th><th>${esc(t('status'))}</th><th>${esc(t('check_in'))}</th><th>${esc(t('late_min'))}</th><th>${esc(t('note'))}</th><th></th></tr></thead><tbody>`+
       j.rows.map(r=>`<tr><td>${r.snapshot?`<a href="/snap/${esc(r.snapshot)}" target="_blank"><img class="thumb" src="/snap/${esc(r.snapshot)}" alt=""><img class="thumb" src="/snap/${esc(r.snapshot)}" alt="" onerror="this.style.display='none'"></a>`:''}</td>
       <td><b>${esc(r.name)}</b><div class="dim">${esc(r.id)}</div></td><td>${esc(r.group)}</td><td>${pill(r.status)}</td>
-      <td>${esc(r.check_in||'')}</td><td>${esc(r.check_out||'')}</td><td>${r.late_min||''}</td><td>${esc(r.note)}</td>
+      <td>${esc(r.check_in||'')}</td><td>${r.late_min||''}</td><td>${esc(r.note)}</td>
       <td><select data-id="${esc(r.id)}" aria-label="${esc(t('mark'))}"><option value="">…</option>${['present','late','excused','absent'].map(s=>`<option value="${s}">${esc(t(s))}</option>`).join('')}<option value="clear">${esc(t('clear'))}</option></select></td></tr>`).join('')+'</tbody></table>':`<p class="dim">${esc(t('no_rows'))}</p>`;
     $('#tb').onchange=e=>{const id=e.target.dataset.id;if(!id||!e.target.value)return;
       let note='';if(e.target.value==='excused')note=prompt(t('note'))||'';
@@ -93,7 +93,7 @@ async function today(){
   await load(); if(S.date===todayStr())timer=setInterval(load,10000);
 }
 
-// ---------- Odamlar ----------
+// ---------- People ----------
 let EN=null;
 async function people(){
   const [gs,pp]=await Promise.all([api('/api/groups'),api('/api/people')]);EN=null;
@@ -132,7 +132,7 @@ function enroll(p,max){
   $('#cl').onclick=()=>{el.style.display='none';el.innerHTML='';people()};el.scrollIntoView({behavior:'smooth'});
 }
 
-// ---------- Guruhlar ----------
+// ---------- Groups ----------
 async function groups(){
   const j=await api('/api/groups');const wd=g=>String(g.workdays).split(',');
   $('#view').innerHTML=`<h2>${esc(t('nav_groups'))}</h2>
@@ -155,7 +155,7 @@ async function groups(){
     if(b.dataset.a==='del'&&confirm(t('confirm_delete')))act(async()=>{await api('/api/groups/'+g.id,{method:'DELETE'});groups()})};
 }
 
-// ---------- Hisobot ----------
+// ---------- Reports ----------
 async function report(){
   const gs=(await api('/api/groups')).groups;const to=todayStr(),fr=new Date(Date.now()-29*864e5).toISOString().slice(0,10);
   $('#view').innerHTML=`<h2>${esc(t('nav_report'))}</h2><div class="card row"><label>${esc(t('from'))}<input type="date" id="rf" value="${fr}"></label>
@@ -169,14 +169,14 @@ async function report(){
   ['rf','rt','rg'].forEach(i=>$('#'+i).onchange=load);load();
 }
 
-// ---------- Ogohlantirishlar ----------
+// ---------- Alerts ----------
 async function alerts(){
   const j=await api('/api/unknown');
   $('#view').innerHTML=`<h2>${esc(t('nav_alerts'))}</h2>`+(j.rows.length?`<div class="grid">`+j.rows.map(r=>`<figure>${r.snapshot?`<a href="/snap/${esc(r.snapshot)}" target="_blank"><img src="/snap/${esc(r.snapshot)}" alt="" onerror="this.parentNode.outerHTML='<div class=noimg>'+t('no_image')+'</div>'"></a>`:`<div class="noimg">${esc(t('no_image'))}</div>`}
   <figcaption>${pill(r.kind==='spoof'?'absent':'late').replace(/>[^<]*</,'>'+esc(t(r.kind==='spoof'?'k_spoof':'k_unknown'))+'<')}<br>${esc(r.ts)}</figcaption></figure>`).join('')+'</div>':`<p class="dim">${esc(t('no_rows'))}</p>`);
 }
 
-// ---------- Tizim ----------
+// ---------- System ----------
 async function account(){
   const s=await api('/api/status');
   $('#view').innerHTML=`<h2>${esc(t('nav_account'))}</h2>${s.liveness==='off'?`<div class="warn">${esc(t('live_off'))}</div>`:''}

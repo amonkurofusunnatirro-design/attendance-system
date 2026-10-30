@@ -19,7 +19,9 @@ def _b(v):
     return str(v).lower() in ("1", "true", "yes", "on")
 
 
-LANG = _e("FACEATTEND_LANG", "ja")                 # ja | uz | en
+LANG = _e("FACEATTEND_LANG", "ja")
+if LANG not in ("ja", "en"):
+    LANG = "ja"
 HOST = _e("FACEATTEND_HOST", "127.0.0.1")          # ネットワーク公開は 0.0.0.0（必ずパスワード付きで）
 PORT = _e("FACEATTEND_PORT", 5000, int)
 
@@ -44,7 +46,6 @@ TRACK_TTL = 1.0
 REVERIFY_SEC = 1.0        # 認識済みの人をこの秒数ごとに再確認（高速化）
 IDENTITY_DROP_FRAMES = 3  # 認識済みの人と別の顔がこのフレーム数連続で一致しなければ本人確定を取り消す
 COOLDOWN_SEC = 20         # 同じ人を再通知しない間隔（秒）
-MIN_STAY_MIN = 30         # この分数以上経って再通過すると「退室」を記録
 MAX_EMB_PER_PERSON = 10
 
 # ---- なりすまし対策 ----
@@ -62,12 +63,12 @@ SERVER_SOUND = _b(_e("FACEATTEND_SERVER_SOUND", "0"))   # PC本体のビープ�
 # ---- Telegram（任意） ----
 TG_TOKEN = _e("FACEATTEND_TG_TOKEN", "")
 TG_ADMIN_CHAT = _e("FACEATTEND_TG_ADMIN_CHAT", "")
+TG_NOTIFY_ADMIN_ARRIVAL = _b(_e("FACEATTEND_TG_NOTIFY_ARRIVAL", "1"))   # 入室通知を管理者チャットにも送る
 ABSENT_REPORT_AFTER_MIN = 30   # 始業時刻（+猶予）からこの分数後に欠席者レポートを送信
 
 RETENTION_DAYS = _e("FACEATTEND_RETENTION_DAYS", 90, int)   # 画像の保存期間（日）
 
 LABELS = {
-    "uz": {"unknown": "Notanish", "fake": "SOXTA", "closer": "Yaqinroq keling", "scan": "..."},
     "ja": {"unknown": "未登録", "fake": "偽物", "closer": "もっと近くへ", "scan": "..."},
     "en": {"unknown": "Unknown", "fake": "FAKE", "closer": "Come closer", "scan": "..."},
 }

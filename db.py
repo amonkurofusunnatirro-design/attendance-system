@@ -207,7 +207,7 @@ def att_range(d1, d2, group=None):
 
 
 def punch(pid, now, score=None):
-    """入退室を記録します。戻り値: ('in'|'out'|'already', status)"""
+    """入室を1日1回記録します。戻り値: ('in'|'already', status)"""
     p = person(pid)
     g = groups_map().get(p["group_id"]) or logic.DEFAULT_GROUP
     d, t = now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")
@@ -222,10 +222,6 @@ def punch(pid, now, score=None):
         x("UPDATE attendance SET check_in=?, status=?, score=?, source='auto' WHERE person_id=? AND date=?",
           (t, new, score, pid, d))
         return "in", new
-    last = datetime.strptime(f"{d} {rec['check_out'] or rec['check_in']}", "%Y-%m-%d %H:%M:%S")
-    if (now - last) >= timedelta(minutes=config.MIN_STAY_MIN):
-        x("UPDATE attendance SET check_out=? WHERE person_id=? AND date=?", (t, pid, d))
-        return "out", rec["status"]
     return "already", rec["status"]
 
 
